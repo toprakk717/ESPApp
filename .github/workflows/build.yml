@@ -10,31 +10,42 @@ jobs:
         with:
           python-version: '3.10'
 
+      - uses: android-actions/setup-android@v3
+
+      - name: Install build tools
+        run: |
+          yes | sdkmanager "build-tools;34.0.0" \
+            "platforms;android-33" \
+            "platform-tools" || true
+
       - name: Install system deps
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            zlib1g-dev libffi-dev openssl \
-            openjdk-17-jdk wget unzip \
-            aidl
-
-      - name: Accept Android SDK licenses
-        run: |
-          mkdir -p $HOME/.android
-          echo "count=0" > $HOME/.android/repositories.cfg
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
-            --licenses || true
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
-            "build-tools;34.0.0" \
-            "platforms;android-33" \
-            "platform-tools" || true
+            zlib1g-dev libffi-dev \
+            openjdk-17-jdk aidl
 
       - name: Install Python deps
         run: |
           pip install --upgrade pip
           pip install buildozer cython==0.29.33
 
+      - name: Link SDK to buildozer
+        run: |
+          mkdir -p ~/.buildozer/android/platform/android-sdk/build-tools/34.0.0
+          ln -sf $ANDROID_SDK_ROOT/build-tools/34.0.0/* \
+            ~/.buildozer/android/platform/android-sdk/build-tools/34.0.0/ || true
+          mkdir -p ~/.buildozer/android/platform/android-sdk/platforms
+          ln -sf $ANDROID_SDK_ROOT/platforms/android-33 \
+            ~/.buildozer/android/platform/android-sdk/platforms/ || true
+          mkdir -p ~/.buildozer/android/platform/android-sdk/platform-tools
+          ln -sf $ANDROID_SDK_ROOT/platform-tools/* \
+            ~/.buildozer/android/platform/android-sdk/platform-tools/ || true
+
       - name: Build APK
+        env:
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
         run: buildozer android debug
 
       - uses: actions/upload-artifact@v4
