@@ -1,0 +1,21 @@
+name: Build APK
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zlib1g-dev libffi-dev openssl
+          pip install buildozer cython==0.29.33 kivy
+      - name: Build
+        run: buildozer android debug
+      - uses: actions/upload-artifact@v3
+        with:
+          name: esp-apk
+          path: bin/*.apk
