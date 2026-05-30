@@ -3,6 +3,10 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_HOME: /usr/local/lib/android/sdk
+
     steps:
       - uses: actions/checkout@v4
 
@@ -12,35 +16,99 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
-      - name: Install build tools
+      - name: Install all SDK components
         run: |
-          yes | sdkmanager "build-tools;34.0.0" \
+          yes | sdkmanager --licenses || true
+          yes | sdkmanager \
+            "build-tools;34.0.0" \
+            "build-tools;33.0.0" \
             "platforms;android-33" \
-            "platform-tools" || true
+            "platforms;android-32" \
+            "platform-tools" \
+            "tools" \
+            "extras;android;m2repository" \
+            "extras;google;m2repository" || true
 
-      - name: Install system deps
+      - name: Install all system deps
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            zlib1g-dev libffi-dev \
-            openjdk-17-jdk aidl
+            zlib1g-dev \
+            libffi-dev \
+            libssl-dev \
+            openjdk-17-jdk \
+            aidl \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            libltdl-dev \
+            libgdbm-dev \
+            libc6-dev \
+            libncurses5-dev \
+            libbz2-dev \
+            libreadline-dev \
+            libsqlite3-dev \
+            libexpat1-dev \
+            liblzma-dev \
+            python3-dev \
+            python3-pip \
+            unzip \
+            git \
+            wget \
+            curl \
+            cmake \
+            ninja-build
 
       - name: Install Python deps
         run: |
-          pip install --upgrade pip
-          pip install buildozer cython==0.29.33
+          pip install --upgrade pip setuptools wheel
+          pip install buildozer
+          pip install cython==0.29.33
+          pip install kivy
 
-      - name: Link SDK to buildozer
+      - name: Link entire SDK to buildozer
         run: |
+          mkdir -p ~/.buildozer/android/platform/android-sdk
+
+          # build-tools
           mkdir -p ~/.buildozer/android/platform/android-sdk/build-tools/34.0.0
           ln -sf $ANDROID_SDK_ROOT/build-tools/34.0.0/* \
             ~/.buildozer/android/platform/android-sdk/build-tools/34.0.0/ || true
+
+          # platforms
           mkdir -p ~/.buildozer/android/platform/android-sdk/platforms
           ln -sf $ANDROID_SDK_ROOT/platforms/android-33 \
             ~/.buildozer/android/platform/android-sdk/platforms/ || true
+
+          # platform-tools
           mkdir -p ~/.buildozer/android/platform/android-sdk/platform-tools
           ln -sf $ANDROID_SDK_ROOT/platform-tools/* \
             ~/.buildozer/android/platform/android-sdk/platform-tools/ || true
+
+          # tools/bin sdkmanager
+          mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
+          ln -sf $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/* \
+            ~/.buildozer/android/platform/android-sdk/tools/bin/ || true
+          ln -sf $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+            ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager || true
+
+          # cmdline-tools
+          mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
+          ln -sf $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/* \
+            ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/ || true
+
+          # extras
+          mkdir -p ~/.buildozer/android/platform/android-sdk/extras
+          ln -sf $ANDROID_SDK_ROOT/extras/* \
+            ~/.buildozer/android/platform/android-sdk/extras/ || true
+
+      - name: Verify SDK setup
+        run: |
+          echo "SDK Root: $ANDROID_SDK_ROOT"
+          ls ~/.buildozer/android/platform/android-sdk/
+          ls ~/.buildozer/android/platform/android-sdk/build-tools/
+          ls ~/.buildozer/android/platform/android-sdk/tools/bin/
 
       - name: Build APK
         env:
@@ -52,3 +120,4 @@ jobs:
         with:
           name: esp-apk
           path: bin/*.apk
+          if-no-files-found: warn
