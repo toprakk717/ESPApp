@@ -5,16 +5,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - name: Install deps
+
+      - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y zlib1g-dev libffi-dev openssl
+          sudo apt-get install -y \
+            zlib1g-dev libffi-dev openssl \
+            openjdk-17-jdk wget unzip \
+            aidl
+
+      - name: Accept Android SDK licenses
+        run: |
+          mkdir -p $HOME/.android
+          echo "count=0" > $HOME/.android/repositories.cfg
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+            --licenses || true
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+            "build-tools;34.0.0" \
+            "platforms;android-33" \
+            "platform-tools" || true
+
+      - name: Install Python deps
+        run: |
+          pip install --upgrade pip
           pip install buildozer cython==0.29.33
-      - name: Build
+
+      - name: Build APK
         run: buildozer android debug
+
       - uses: actions/upload-artifact@v4
         with:
           name: esp-apk
